@@ -1,6 +1,14 @@
 # ml_project
 ML Final Project UPC 
 
+# All projects must include:
+● Exploratory Data Analysis (EDA)
+● Data preprocessing (missing values, encoding, scaling)
+● Feature selection or extraction
+● Model comparison
+● Interpretation of results
+● Discussion of dataset challenges
+
 # Required Project Phases
 Your project must include the following phases:
 
