@@ -49,3 +49,6 @@ For regression: -> not needed
 ● RMSE
 ● Compare models and select the best one
 ● (Optional) Perform statistical tests (e.g., paired t-test)
+
+# Baseline Models (Mandatory)
+You must include at least one simple baseline model to contextualize performance.
