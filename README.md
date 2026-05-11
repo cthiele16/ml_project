@@ -59,4 +59,14 @@ For regression: -> not needed
 ● (Optional) Perform statistical tests (e.g., paired t-test)
 
 # Baseline Models (Mandatory)
-You must include at least one simple baseline model to contextualize performance.
+You must include at least one simple baseline model to contextualize performance. e.g.
+Random Guessing: predicts classes randomly according to their training distribution.
+One-Class-prediction: always predict only one class for all samples
+
+
+1. download dataset in terminal: 
+pip install ucimlrepo
+python -m pip install matplotlib
+
+
+How to run: # python main.py phase1
