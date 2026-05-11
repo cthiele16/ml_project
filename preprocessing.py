@@ -1,6 +1,7 @@
+from sklearn.compose import ColumnTransformer
 from ucimlrepo import fetch_ucirepo
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 
 RANDOM_STATE = 20
@@ -31,23 +32,17 @@ NUMERIC_COLS = ["LIMIT_BAL", "AGE",
 
 def preprocessing(df):
     df = df.copy()
-
     # Dataset does not have missing values
 
     # Education (1 = graduate school; 2 = university; 3 = high school; 4 = others) but the dataset contains values with cathegory 0,5,6 so merge into others
     df["EDUCATION"] = df["EDUCATION"].replace({0: 4, 5: 4, 6: 4})
+    
     # Marital status (1 = married; 2 = single; 3 = others) but the dataset contains values with cathegory 0 so merge into others
     df["MARRIAGE"] = df["MARRIAGE"].replace({0: 3})
 
     # SEX as binary (male=0, female=1) because now 1,2
     df["SEX"] = (df["SEX"] == 2).astype(int)
 
-    # One-hot encoding: create binary columns for EDUCATION and MARRIAGE to get a better understanding of e.g. does being a university graduate increase default risk compared to a graduate school graduate?
-    # drop_first=True -> avoid multicollinearity (one can only be in one category, which si the highest grade)
-    edu_dummies = pd.get_dummies(df["EDUCATION"], prefix="EDU", drop_first=True)
-    mar_dummies = pd.get_dummies(df["MARRIAGE"], prefix="MAR", drop_first=True)
-    df = df.drop(columns=["EDUCATION", "MARRIAGE"])
-    df = pd.concat([df, edu_dummies, mar_dummies], axis=1)
 
     # Feature engineering
     # How much of their credit limit they're using — high utilization is a classic default risk signal
@@ -58,19 +53,31 @@ def preprocessing(df):
     # How many of the 6 months had a payment delay (PAY > 0 means delayed)
     pay_cols = ["PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"]
     df['MONTHS_DELAYED'] = (df[pay_cols] > 0).sum(axis=1)
+    
+    #Add to numeric columns
+    ENGINEERED_COLS = [
+        "CREDIT_UTILIZATION",
+        "PAYMENT_RATIO",
+        "MONTHS_DELAYED"
+    ]
+
+    numeric_cols = NUMERIC_COLS + ENGINEERED_COLS
 
     # get Features and target seperately
-    feature_names = [c for c in df.columns if c != "Y"]
-    X = df[feature_names].values.astype(float)
-    y = df["Y"].values.astype(int)
+    X = df.drop(columns=["Y"])
+    y = df["Y"]
 
     # Train/test split 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
+    
+    preprocessor = ColumnTransformer([
+        ('num', StandardScaler(), numeric_cols),
+        ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), CATEGORICAL_COLS)
+    ])
 
-    # Scale
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    X_train = preprocessor.fit_transform(X_train)
+    X_test = preprocessor.transform(X_test)
+    feature_names = preprocessor.get_feature_names_out()
 
     print(f"\nPreprocessing complete.")
     print(f"  Train: {X_train.shape}  |  Test: {X_test.shape}")
@@ -78,8 +85,7 @@ def preprocessing(df):
     print(f"  Train default rate: {y_train.mean():.3f}  |  Test default rate: {y_test.mean():.3f}")
     print(f"  Class imbalance ratio (train): {(y_train == 0).sum() / (y_train == 1).sum():.2f} : 1")
 
-    return X_train, X_test, y_train, y_test, feature_names, scaler
-
+    return X_train, X_test, y_train, y_test, feature_names
 
 def run():
     # get dataset from UCI and rename columns 
@@ -89,8 +95,8 @@ def run():
     df = pd.concat([X, y], axis=1)
     df = df.rename(columns=COL_NAMES)
 
-    X_train, X_test, y_train, y_test, feature_names, scaler = preprocessing(df)
-    return X_train, X_test, y_train, y_test, feature_names, scaler
+    X_train, X_test, y_train, y_test, feature_names = preprocessing(df)
+    return X_train, X_test, y_train, y_test, feature_names
 
 
 if __name__ == "__main__":
