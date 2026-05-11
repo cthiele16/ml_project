@@ -1,9 +1,6 @@
 import pandas as pd
 import numpy as np
-from preprocessing_phase2 import X,y
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.model_selection import train_test_split
+from preprocessing import run as preprocess
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import (
@@ -14,31 +11,16 @@ from sklearn.metrics import (
     classification_report
 )
 
-# Phase 2 - Logistic Regression
-def preprocess(X):
-    """
-    Creates a ColumnTransformer to handle numerical and categorical data.
-    Standardizes numbers and One-Hot Encodes categories.
-    """
-
-    # One-hot encoding on categorical features
-    categorical_features = ['X2', 'X3', 'X4']
-    numerical_features = [col for col in X.columns if col not in categorical_features]
+def find_best_model(X_train, y_train, X_test, y_test, feature_names):
     
-    preprocessor = ColumnTransformer([
-        ('num', StandardScaler(), numerical_features),
-        ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), categorical_features)
-    ])
-
-    return preprocessor
-
-
-def find_best_model(X_train, y_train, X_test, y_test):
     print("Find best model")
+
     C_values = [0.01, 0.1, 1, 10, 100]
+
     coefs = []
-    best_c = None
     results = []
+
+    best_c = None
     best_model = None
     best_f1 = -1
 
@@ -50,7 +32,7 @@ def find_best_model(X_train, y_train, X_test, y_test):
             random_state=42
         )
 
-        model.fit(X_train, y_train.values.ravel())
+        model.fit(X_train, y_train)
         coefs.append(model.coef_[0])
 
         y_prob = model.predict_proba(X_test)[:, 1]
@@ -68,9 +50,15 @@ def find_best_model(X_train, y_train, X_test, y_test):
             best_f1 = f1
             best_model = model
             best_c = C
-    coef_df = pd.DataFrame(coefs)
+    
+    coef_df = pd.DataFrame(
+        coefs, 
+        columns=feature_names
+    )
+    
     coef_df["C"] = C_values
 
+    print("\nCoefficient Table:")
     print(coef_df)
 
     return best_model, pd.DataFrame(results), best_c
@@ -108,29 +96,25 @@ def find_best_threshold(model, X_test, y_test):
 
 
 def run():
-    # STEP 1: preprocessing
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y
-    )
-    
-    preprocessor = preprocess(X)
-    X_train_transformed = preprocessor.fit_transform(X_train)
-    X_test_transformed = preprocessor.transform(X_test)
+
+    # STEP 1: preprocessing     
+    X_train, X_test, y_train, y_test, feature_names = preprocess()
 
     # STEP 2: model selection (C)
     best_model, results_df, best_c = find_best_model(
-    X_train_transformed, y_train, X_test_transformed, y_test)
+        X_train, 
+        y_train, 
+        X_test, 
+        y_test, 
+        feature_names
+    )
+
     print(results_df)
     print("Best C:", best_c)
 
     # STEP 3: threshold tuning
     best_threshold, y_prob, threshold_results = find_best_threshold(
-        best_model, X_test_transformed, y_test
+        best_model, X_test, y_test
     )
 
     # STEP 4: final prediction
