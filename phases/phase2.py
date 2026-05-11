@@ -1,15 +1,114 @@
-from preprocessing_phase2 import X,y
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+from preprocessing_phase2 import X,y
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import (
+    f1_score,
+    precision_score,
+    recall_score,
+    accuracy_score,
+    classification_report
+)
 
 # Phase 2 - Logistic Regression
-def preprocess_special():
-    print("Start Special Preprocess")
+def preprocess(X):
+    """
+    Creates a ColumnTransformer to handle numerical and categorical data.
+    Standardizes numbers and One-Hot Encodes categories.
+    """
 
+    # One-hot encoding on categorical features
+    categorical_features = ['X2', 'X3', 'X4']
+    numerical_features = [col for col in X.columns if col not in categorical_features]
+    
+    preprocessor = ColumnTransformer([
+        ('num', StandardScaler(), numerical_features),
+        ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), categorical_features)
+    ])
+
+    return preprocessor
+
+
+def find_best_model(X_train, y_train, X_test, y_test):
+    print("Find best model")
+    C_values = [0.01, 0.1, 1, 10, 100]
+    coefs = []
+    best_c = None
+    results = []
+    best_model = None
+    best_f1 = -1
+
+    for C in C_values:
+        model = LogisticRegression(
+            C=C,
+            max_iter=1000,
+            class_weight='balanced',
+            random_state=42
+        )
+
+        model.fit(X_train, y_train.values.ravel())
+        coefs.append(model.coef_[0])
+
+        y_prob = model.predict_proba(X_test)[:, 1]
+        y_pred = (y_prob >= 0.5).astype(int)
+
+        f1 = f1_score(y_test, y_pred)
+
+        results.append({
+            "C": C,
+            "f1": f1,
+            "auc": roc_auc_score(y_test, y_prob)
+})
+
+        if f1 > best_f1:
+            best_f1 = f1
+            best_model = model
+            best_c = C
+    coef_df = pd.DataFrame(coefs)
+    coef_df["C"] = C_values
+
+    print(coef_df)
+
+    return best_model, pd.DataFrame(results), best_c
+
+def evaluate_thresholds(y_true, y_prob):
+    thresholds = np.arange(0.1, 0.9, 0.05)
+
+    results = []
+
+    for t in thresholds:
+        preds = (y_prob >= t).astype(int)
+
+        results.append({
+            'threshold': t,
+            'f1': f1_score(y_true, preds),
+            'precision': precision_score(y_true, preds),
+            'recall': recall_score(y_true, preds),
+            'accuracy': accuracy_score(y_true, preds)
+        })
+
+    return pd.DataFrame(results)
+
+def find_best_threshold(model, X_test, y_test):
+    y_prob = model.predict_proba(X_test)[:, 1]
+    
+    threshold_results = evaluate_thresholds(y_test, y_prob)
+    
+    best_row = threshold_results.loc[
+        threshold_results['f1'].idxmax()
+        ]
+
+    best_threshold = best_row['threshold']
+
+    return best_threshold, y_prob, threshold_results
+
+
+def run():
+    # STEP 1: preprocessing
     # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -18,38 +117,29 @@ def preprocess_special():
         random_state=42,
         stratify=y
     )
+    
+    preprocessor = preprocess(X)
+    X_train_transformed = preprocessor.fit_transform(X_train)
+    X_test_transformed = preprocessor.transform(X_test)
 
-    # Feature scaling
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    # STEP 2: model selection (C)
+    best_model, results_df, best_c = find_best_model(
+    X_train_transformed, y_train, X_test_transformed, y_test)
+    print(results_df)
+    print("Best C:", best_c)
 
-    return X_train_scaled, X_test_scaled, y_train, y_test
+    # STEP 3: threshold tuning
+    best_threshold, y_prob, threshold_results = find_best_threshold(
+        best_model, X_test_transformed, y_test
+    )
 
-def run():
-    # Preprocessing
-    X_train, X_test, y_train, y_test = preprocess_special()
+    # STEP 4: final prediction
+    y_pred = (y_prob >= best_threshold).astype(int)
 
-    # Train logistic regression model
-    model = LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42)
-    model.fit(X_train, y_train.values.ravel())
-
-    # Predictions
-    y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:, 1]
-
-
-    # Feature importance check 
-    importance = pd.DataFrame({'Feature': X.columns, 'Weight': model.coef_[0]})
-    print(importance.sort_values(by='Weight', ascending=False))
-
-     # Evaluation metrics
-    print("Accuracy:", accuracy_score(y_test, y_pred))
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(y_test, y_pred))
-    print("\nClassification Report:")
+    # STEP 5: evaluation
+    print("Best threshold results:", best_threshold)
+    print("AUC-ROC Score:", roc_auc_score(y_test, y_prob))
     print(classification_report(y_test, y_pred))
-    print("AUC Score:", roc_auc_score(y_test, y_prob))
 
 if __name__ == "__main__":
     run()
