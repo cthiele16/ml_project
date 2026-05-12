@@ -32,39 +32,52 @@ NUMERIC_COLS = ["LIMIT_BAL", "AGE",
                 ]
 
 def load_prepare_data():
+    """
+    Load dataset, clean variables,
+    and create engineered features.
+    """
+
+    # Download dataset
     dataset = fetch_ucirepo(id=350)
 
     X = dataset.data.features
     y = dataset.data.targets
 
+    # Combine features + target
     df = pd.concat([X, y], axis=1)
 
+    #Rename Columns
     df = df.rename(columns=COL_NAMES)
 
-    # CLEAN
+    # DATA CLEANING
+    # Merge rare education categories
     df["EDUCATION"] = df["EDUCATION"].replace({
         0: 4,
         5: 4,
         6: 4
     })
 
+    # Replace unknown marriage category
     df["MARRIAGE"] = df["MARRIAGE"].replace({
         0: 3
     })
 
-    # female = 1, male = 0
+    # Convert sex female = 1, male = 0
     df["SEX"] = (df["SEX"] == 2).astype(int)
 
     #FEATURE ENGINEERING
+     # Credit usage ratio
     df["CREDIT_UTILIZATION"] = (
         df["BILL_AMT1"] / df["LIMIT_BAL"]
     )
 
+    # Payment ratio
     df["PAYMENT_RATIO"] = (
         df["PAY_AMT1"]
         / df["BILL_AMT1"].replace(0, np.nan)
     ).clip(0, 1).fillna(0)
 
+    # Repayment delay columns
     pay_cols = [
         "PAY_0",
         "PAY_2",
@@ -74,16 +87,19 @@ def load_prepare_data():
         "PAY_6"
     ]
 
+    # Count delayed months
     df["MONTHS_DELAYED"] = (
         df[pay_cols] > 0
     ).sum(axis=1)
 
+    # Engineered features
     engineered_cols = [
         "CREDIT_UTILIZATION",
         "PAYMENT_RATIO",
         "MONTHS_DELAYED"
     ]
 
+    # Add engineered features to numeric columns
     numeric_cols = NUMERIC_COLS + engineered_cols
 
     #FEATURES + TARGET
@@ -93,6 +109,11 @@ def load_prepare_data():
     return X, y, numeric_cols
 
 def create_preprocessor(numeric_cols):
+    """
+    Create preprocessing pipeline:
+    - scale numerical features
+    - one-hot encode categorical features
+    """
     preprocessor = ColumnTransformer([
         (
             'num',
@@ -113,8 +134,15 @@ def create_preprocessor(numeric_cols):
 
 
 def test_train_split(X,y):
-    # Split Data
-
+    """
+    Split data into:
+    - train
+    - validation
+    - test
+    """
+    # First split:
+    # 60% train
+    # 40% temporary
     X_train, X1_test, y_train, y1_test = train_test_split(
         X,
         y,
@@ -123,6 +151,9 @@ def test_train_split(X,y):
         random_state=RANDOM_STATE
     )
 
+    # Second split:
+    # 20% validation
+    # 20% test
     X_val, X_test, y_val, y_test = train_test_split(
         X1_test,
         y1_test,
@@ -131,6 +162,7 @@ def test_train_split(X,y):
         random_state=RANDOM_STATE
     )
 
+    # Print dataset sizes
     print("\nDataset Sizes")
     print("Train:", X_train.shape)
     print("Validation:", X_val.shape)
@@ -139,10 +171,16 @@ def test_train_split(X,y):
     return X_train, y_train, X_val, X_test, y_val, y_test
 
 def run():
+    """
+    Complete preprocessing pipeline.
+    """
+     # Load and clean dataset
     X, y, numeric_cols = load_prepare_data()
     
+    # Split dataset
     X_train, y_train,  X_val, X_test, y_val, y_test =test_train_split(X,y)
 
+    # Create preprocessor
     preprocessor = create_preprocessor(numeric_cols)
 
     return X_train, y_train, X_val, X_test, y_val, y_test, preprocessor
