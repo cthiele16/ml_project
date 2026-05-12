@@ -1,7 +1,8 @@
 import argparse
 import eda
+from phases import logistic_regression_model
 import preprocessing
-from phases import phase1, phase2, phase3, phase4, phase5
+from phases import phase1, phase3, phase4, phase5
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -15,7 +16,7 @@ if __name__ == "__main__":
     elif args.phase == "phase1":
         phase1.run()
     elif args.phase == "phase2":
-        phase2.run()
+        logistic_regression_model.run()
     elif args.phase == "phase3":
         phase3.run()
     elif args.phase == "phase4":
