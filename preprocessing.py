@@ -18,9 +18,20 @@ COL_NAMES = {
 
 # dataset mentions  SEX, EDUCATION, MARRIAGE as categorical with defined category
 # (e.g., EDUCATION: 1=graduate school, 2=university...). 
+<<<<<<< Updated upstream
 # PAY_0..PAY_6 are repayment status codes (-2 to 9), not continuous measurements
 CATEGORICAL_COLS = ["SEX", "EDUCATION", "MARRIAGE",
                     "PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"]
+=======
+CATEGORICAL_COLS = ["SEX", "EDUCATION", "MARRIAGE"]
+>>>>>>> Stashed changes
+
+# BILL_AMT1-6 = bill amount in month 1/month 2 (one month ago)/...
+# PAY_AMT1–6 = how much did the customer actually paid in month 1/month 2 (one month ago)/...
+# PAY_0, PAY_2–6 = repayment status each month (PAY_0 is most recent, oddly named):
+    # -2 = No consumption (nothing to pay), -1	Paid in full, 0	Minimum payment made (revolving credit), 1	1 month late, 2	2 months late
+# So a customer with PAY_0=2, PAY_2=1, PAY_3=0 was 2 months late most recently, 1 month late before that, and paid minimally the month before that
+
 
 NUMERIC_COLS = ["LIMIT_BAL", "AGE",
                 "BILL_AMT1", "BILL_AMT2", "BILL_AMT3",
@@ -80,6 +91,7 @@ def preprocessing(df):
 
     return X_train, X_test, y_train, y_test, feature_names, scaler
 
+<<<<<<< Updated upstream
 
 def run():
     # get dataset from UCI and rename columns 
@@ -88,6 +100,120 @@ def run():
     y = dataset.data.targets
     df = pd.concat([X, y], axis=1)
     df = df.rename(columns=COL_NAMES)
+=======
+    return X, y, numeric_cols
+
+def create_preprocessor(numeric_cols):
+    """
+    Create preprocessing pipeline:
+    - scale numerical features
+    - one-hot encode categorical features
+    """
+    preprocessor = ColumnTransformer([
+        (
+            'num',
+            StandardScaler(),
+            numeric_cols
+        ),
+        (
+            'cat',
+            OneHotEncoder(
+                drop='first',
+                handle_unknown='ignore'
+            ),
+            CATEGORICAL_COLS
+        )
+    ])
+
+    return preprocessor
+
+# Columns where capping makes sense (continuous, not bounded ordinal)
+
+NUMERIC_COLS = ["LIMIT_BAL", "AGE",
+                "BILL_AMT1", "BILL_AMT2", "BILL_AMT3",
+                "BILL_AMT4", "BILL_AMT5", "BILL_AMT6",
+                "PAY_AMT1", "PAY_AMT2", "PAY_AMT3",
+                "PAY_AMT4", "PAY_AMT5", "PAY_AMT6",
+                "PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"
+                ]
+
+
+def cap_outliers(X_train, X_val, X_test, cols):
+    """
+    IQR-based capping fitted on train, applied to all splits.
+    """
+
+    # deciding to not capp the CREDIT_UTILIZATION because it vary a lot but still is very meaningful
+    EXCLUDE = {"PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6", "PAYMENT_RATIO", "MONTHS_DELAYED", "CREDIT_UTILIZATION"}
+    COLS_TO_CAP = [c for c in cols if c not in EXCLUDE]
+
+    bounds = {}
+    for col in COLS_TO_CAP:
+        if col not in X_train.columns:
+            continue
+        Q1 = X_train[col].quantile(0.25)
+        Q3 = X_train[col].quantile(0.75)
+        IQR = Q3 - Q1
+        lower = Q1 - 1.5 * IQR
+        upper = Q3 + 1.5 * IQR
+        bounds[col] = (lower, upper)
+
+    for df in [X_train, X_val, X_test]:
+        for col, (lower, upper) in bounds.items():
+            df[col] = df[col].clip(lower, upper)
+
+    return X_train, X_val, X_test, bounds
+
+
+
+def test_train_split(X,y):
+    """
+    Split data into:
+    - train
+    - validation
+    - test
+    """
+    # First split:
+    # 60% train
+    # 40% temporary
+    X_train, X1_test, y_train, y1_test = train_test_split(
+        X,
+        y,
+        test_size=0.4,
+        stratify=y,
+        random_state=RANDOM_STATE
+    )
+
+    # Second split:
+    # 20% validation
+    # 20% test
+    X_val, X_test, y_val, y_test = train_test_split(
+        X1_test,
+        y1_test,
+        test_size=0.5,
+        stratify=y1_test,
+        random_state=RANDOM_STATE
+    )
+
+    # Print dataset sizes
+    print("\nDataset Sizes")
+    print("Train:", X_train.shape)
+    print("Validation:", X_val.shape)
+    print("Test:", X_test.shape)
+
+    return X_train, y_train, X_val, X_test, y_val, y_test
+
+def run():
+    """
+    Complete preprocessing pipeline.
+    """
+     # Load and clean dataset
+    X, y, numeric_cols = load_prepare_data()
+    
+    # Split dataset
+    X_train, y_train,  X_val, X_test, y_val, y_test =test_train_split(X,y)
+    X_train, X_val, X_test, _ = cap_outliers(X_train, X_val, X_test, numeric_cols)
+>>>>>>> Stashed changes
 
     X_train, X_test, y_train, y_test, feature_names, scaler = preprocessing(df)
     return X_train, X_test, y_train, y_test, feature_names, scaler
