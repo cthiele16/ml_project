@@ -1,6 +1,7 @@
 from sklearn.compose import ColumnTransformer
 from ucimlrepo import fetch_ucirepo
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 
@@ -20,83 +21,169 @@ COL_NAMES = {
 # dataset mentions  SEX, EDUCATION, MARRIAGE as categorical with defined category
 # (e.g., EDUCATION: 1=graduate school, 2=university...). 
 # PAY_0..PAY_6 are repayment status codes (-2 to 9), not continuous measurements
-CATEGORICAL_COLS = ["SEX", "EDUCATION", "MARRIAGE",
-                    "PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"]
+CATEGORICAL_COLS = ["SEX", "EDUCATION", "MARRIAGE"]
 
 NUMERIC_COLS = ["LIMIT_BAL", "AGE",
                 "BILL_AMT1", "BILL_AMT2", "BILL_AMT3",
                 "BILL_AMT4", "BILL_AMT5", "BILL_AMT6",
                 "PAY_AMT1", "PAY_AMT2", "PAY_AMT3",
-                "PAY_AMT4", "PAY_AMT5", "PAY_AMT6"]
+                "PAY_AMT4", "PAY_AMT5", "PAY_AMT6",
+                "PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"
+                ]
 
+def load_prepare_data():
+    """
+    Load dataset, clean variables,
+    and create engineered features.
+    """
 
-def preprocessing(df):
-    df = df.copy()
-    # Dataset does not have missing values
+    # Download dataset
+    dataset = fetch_ucirepo(id=350)
 
-    # Education (1 = graduate school; 2 = university; 3 = high school; 4 = others) but the dataset contains values with cathegory 0,5,6 so merge into others
-    df["EDUCATION"] = df["EDUCATION"].replace({0: 4, 5: 4, 6: 4})
-    
-    # Marital status (1 = married; 2 = single; 3 = others) but the dataset contains values with cathegory 0 so merge into others
-    df["MARRIAGE"] = df["MARRIAGE"].replace({0: 3})
+    X = dataset.data.features
+    y = dataset.data.targets
 
-    # SEX as binary (male=0, female=1) because now 1,2
+    # Combine features + target
+    df = pd.concat([X, y], axis=1)
+
+    #Rename Columns
+    df = df.rename(columns=COL_NAMES)
+
+    # DATA CLEANING
+    # Merge rare education categories
+    df["EDUCATION"] = df["EDUCATION"].replace({
+        0: 4,
+        5: 4,
+        6: 4
+    })
+
+    # Replace unknown marriage category
+    df["MARRIAGE"] = df["MARRIAGE"].replace({
+        0: 3
+    })
+
+    # Convert sex female = 1, male = 0
     df["SEX"] = (df["SEX"] == 2).astype(int)
 
+    #FEATURE ENGINEERING
+     # Credit usage ratio
+    df["CREDIT_UTILIZATION"] = (
+        df["BILL_AMT1"] / df["LIMIT_BAL"]
+    )
 
-    # Feature engineering
-    # How much of their credit limit they're using — high utilization is a classic default risk signal
-    df['CREDIT_UTILIZATION'] = df['BILL_AMT1'] / df['LIMIT_BAL']
-    # Did they pay the full bill, half, or almost nothing? Clip to [0,1]: >1 means overpaid (treat as 1)
-    # Replace 0 bill amounts with NaN first to avoid division by zero, then fill with 0 (no bill = no ratio)
-    df['PAYMENT_RATIO'] = (df['PAY_AMT1'] / df['BILL_AMT1'].replace(0, float('nan'))).clip(0, 1).fillna(0)
-    # How many of the 6 months had a payment delay (PAY > 0 means delayed)
-    pay_cols = ["PAY_0", "PAY_2", "PAY_3", "PAY_4", "PAY_5", "PAY_6"]
-    df['MONTHS_DELAYED'] = (df[pay_cols] > 0).sum(axis=1)
-    
-    #Add to numeric columns
-    ENGINEERED_COLS = [
+    # Payment ratio
+    df["PAYMENT_RATIO"] = (
+        df["PAY_AMT1"]
+        / df["BILL_AMT1"].replace(0, np.nan)
+    ).clip(0, 1).fillna(0)
+
+    # Repayment delay columns
+    pay_cols = [
+        "PAY_0",
+        "PAY_2",
+        "PAY_3",
+        "PAY_4",
+        "PAY_5",
+        "PAY_6"
+    ]
+
+    # Count delayed months
+    df["MONTHS_DELAYED"] = (
+        df[pay_cols] > 0
+    ).sum(axis=1)
+
+    # Engineered features
+    engineered_cols = [
         "CREDIT_UTILIZATION",
         "PAYMENT_RATIO",
         "MONTHS_DELAYED"
     ]
 
-    numeric_cols = NUMERIC_COLS + ENGINEERED_COLS
+    # Add engineered features to numeric columns
+    numeric_cols = NUMERIC_COLS + engineered_cols
 
-    # get Features and target seperately
+    #FEATURES + TARGET
     X = df.drop(columns=["Y"])
     y = df["Y"]
 
-    # Train/test split 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
-    
+    return X, y, numeric_cols
+
+def create_preprocessor(numeric_cols):
+    """
+    Create preprocessing pipeline:
+    - scale numerical features
+    - one-hot encode categorical features
+    """
     preprocessor = ColumnTransformer([
-        ('num', StandardScaler(), numeric_cols),
-        ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), CATEGORICAL_COLS)
+        (
+            'num',
+            StandardScaler(),
+            numeric_cols
+        ),
+        (
+            'cat',
+            OneHotEncoder(
+                drop='first',
+                handle_unknown='ignore'
+            ),
+            CATEGORICAL_COLS
+        )
     ])
 
-    X_train = preprocessor.fit_transform(X_train)
-    X_test = preprocessor.transform(X_test)
-    feature_names = preprocessor.get_feature_names_out()
+    return preprocessor
 
-    print(f"\nPreprocessing complete.")
-    print(f"  Train: {X_train.shape}  |  Test: {X_test.shape}")
-    print(f"  Features: {len(feature_names)}")
-    print(f"  Train default rate: {y_train.mean():.3f}  |  Test default rate: {y_test.mean():.3f}")
-    print(f"  Class imbalance ratio (train): {(y_train == 0).sum() / (y_train == 1).sum():.2f} : 1")
 
-    return X_train, X_test, y_train, y_test, feature_names
+def test_train_split(X,y):
+    """
+    Split data into:
+    - train
+    - validation
+    - test
+    """
+    # First split:
+    # 60% train
+    # 40% temporary
+    X_train, X1_test, y_train, y1_test = train_test_split(
+        X,
+        y,
+        test_size=0.4,
+        stratify=y,
+        random_state=RANDOM_STATE
+    )
+
+    # Second split:
+    # 20% validation
+    # 20% test
+    X_val, X_test, y_val, y_test = train_test_split(
+        X1_test,
+        y1_test,
+        test_size=0.5,
+        stratify=y1_test,
+        random_state=RANDOM_STATE
+    )
+
+    # Print dataset sizes
+    print("\nDataset Sizes")
+    print("Train:", X_train.shape)
+    print("Validation:", X_val.shape)
+    print("Test:", X_test.shape)
+
+    return X_train, y_train, X_val, X_test, y_val, y_test
 
 def run():
-    # get dataset from UCI and rename columns 
-    dataset = fetch_ucirepo(id=350)
-    X = dataset.data.features
-    y = dataset.data.targets
-    df = pd.concat([X, y], axis=1)
-    df = df.rename(columns=COL_NAMES)
+    """
+    Complete preprocessing pipeline.
+    """
+     # Load and clean dataset
+    X, y, numeric_cols = load_prepare_data()
+    
+    # Split dataset
+    X_train, y_train,  X_val, X_test, y_val, y_test =test_train_split(X,y)
 
-    X_train, X_test, y_train, y_test, feature_names = preprocessing(df)
-    return X_train, X_test, y_train, y_test, feature_names
+    # Create preprocessor
+    preprocessor = create_preprocessor(numeric_cols)
+
+    return X_train, y_train, X_val, X_test, y_val, y_test, preprocessor
 
 
 if __name__ == "__main__":
