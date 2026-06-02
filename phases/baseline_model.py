@@ -1,9 +1,9 @@
 from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, roc_auc_score
-from preprocessing import RANDOM_STATE, run as preprocess
+from preprocessing import RANDOM_STATE, run as run_preprocessing
 
 def preprocess_special():
-    X_train, y_train, X_val, X_test, y_val, y_test, preprocessor = preprocess()
+    X_train, y_train, X_val, X_test, y_val, y_test, preprocessor = run_preprocessing()
 
     return X_train, X_test, y_train, y_test
 
