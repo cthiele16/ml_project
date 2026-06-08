@@ -1,6 +1,3 @@
-# ml_project
-ML Final Project UPC 
-
 # All projects must include:
 ● Exploratory Data Analysis (EDA)
 ● Data preprocessing (missing values, encoding, scaling)
@@ -10,63 +7,27 @@ ML Final Project UPC
 ● Discussion of dataset challenges
 
 # Required Project Phases
-Your project must include the following phases:
-
-# Phase I — Unsupervised Structural Analysis
-● Apply PCA and analyze explained variance
-● Perform clustering (K-Means and GMM)
-● Justify the number of clusters (Elbow Method / Silhouette Score)
-● Discuss whether clusters align with the target variable
-
-# Phase II — Linear and Regularized Models
-● Train:
-○ Logistic Regression (classification)
-○ Ridge / Lasso (regression) -> not needed for our binary problem 
-● Study the effect of regularization (λ)
-● Analyze how model coefficients change
-
-# Phase III — Kernel Methods (SVM)
-● Train SVM models using:
-○ Linear kernel
-○ Polynomial kernel
-○ RBF kernel
-● Perform hyperparameter tuning (Grid Search)
-
-# Phase IV — Ensemble Methods
-● Train:
-○ Random Forest (Bagging)
-○ Boosting models (AdaBoost or Gradient Boosting)
-● Compare:
-○ Performance
-○ Training time
-○ Feature importance
-
-# Phase V — Model Selection and Validation
-● Use cross-validation (preferably nested CV)
-● Evaluate using appropriate metrics:
+* Baseline model
+* Phase I — Unsupervised Structural Analysis
+* Phase II — Linear and Regularized Models
+* Phase III — Kernel Methods (SVM)
+* Phase IV — Ensemble Methods
+* Phase V — Model Selection and Validation
 
 For classification:
-● Accuracy
-● F1-score
-● ROC-AUC
-● AUPR
+* Accuracy
+* F1-score
+* ROC-AUC
+* AUPR
 
-For regression: -> not needed
-● R²
-● MAE
-● RMSE
-● Compare models and select the best one
-● (Optional) Perform statistical tests (e.g., paired t-test)
-
-# Baseline Models (Mandatory)
-You must include at least one simple baseline model to contextualize performance. e.g.
-Random Guessing: predicts classes randomly according to their training distribution.
-One-Class-prediction: always predict only one class for all samples
-
-
+# How to run:
 1. download dataset in terminal: 
-pip install ucimlrepo
-python -m pip install matplotlib
-
-
-How to run: # python main.py phase1
+`pip install ucimlrepo`
+`python -m pip install matplotlib`
+2. Run each phase seperately
+`python main.py phasename`
+choose between phasenames: "eda", "preprocessing", "unsupervised", "baseline", "logistic_regression", "svm", "phase4", "modelcomparison"
+You can either:
+* run all of the phases seperately (1. eda, 2. preprocess, 3. unsupervised, 4. baseline, 5. logistic_regression, 6. svm, 7. phase4) 
+OR 
+* you run one time modelcomparison which does everything together, analysis, preprocessing, fits all the models and gives out the results, compares the models and gives the best model for our dataset.
