@@ -19,6 +19,8 @@ from sklearn.metrics import (
 )
 
 from preprocessing import RANDOM_STATE, run as run_preprocessing
+from utils import save_results
+
 
 def train_model(X_train, y_train, preprocessor):
     """
@@ -192,6 +194,9 @@ def run():
     #Full classification metrics
     print("\nClassification Report:")
     print(classification_report(y_test, y_test_pred))
+
+    save_results("logisticRegression", y_test, y_test_pred, y_test_prob,
+             best_params={"C": best_model.named_steps["model"].C})
 
     #return best model and best threshold
     return best_model, best_threshold

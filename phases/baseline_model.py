@@ -1,6 +1,7 @@
 from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, roc_auc_score
 from preprocessing import RANDOM_STATE, run as run_preprocessing
+from utils import save_results
 
 def preprocess_special():
     X_train, y_train, X_val, X_test, y_val, y_test, preprocessor = run_preprocessing()
@@ -25,6 +26,8 @@ def run():
     print("--- Random Baseline Results ---")
     print(f"AUC Score: {roc_auc_score(y_test, y_prob_random):.3f}")
     print(classification_report(y_test, y_pred_random))
+
+    save_results("baseline", y_test, y_pred_random, y_prob_random)
 
 if __name__ == "__main__":
     run()

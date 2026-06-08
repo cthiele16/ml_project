@@ -12,6 +12,7 @@ from sklearn.metrics import (
 )
 
 from preprocessing import RANDOM_STATE, run as run_preprocessing
+from utils import save_results
 
 
 def train_model(X_train, y_train, preprocessor):
@@ -124,6 +125,9 @@ def run():
     print(f"ROC-AUC: {roc_auc_score(y_test, y_test_score):.4f}")
     print(f"AUPR:    {average_precision_score(y_test, y_test_score):.4f}")
     print(classification_report(y_test, y_test_pred))
+
+    save_results("svm",y_test, y_test_pred, y_test_score,best_params=summary.iloc[0]["best_params"], variants=summary.to_dict(orient="records"))
+    return summary 
 
 
 if __name__ == "__main__":
