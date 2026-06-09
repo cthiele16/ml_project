@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 phases/__pycache__/
 .vscode/
+data/
