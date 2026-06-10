@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
+import os
 
 RANDOM_STATE = 20
 
@@ -43,14 +44,20 @@ def load_prepare_data():
     and create engineered features.
     """
 
-    # Download dataset
-    dataset = fetch_ucirepo(id=350)
+    cache_path = "data/credit_default.csv"
 
-    X = dataset.data.features
-    y = dataset.data.targets
-
-    # Combine features + target
-    df = pd.concat([X, y], axis=1)
+    # download the dataset the first time used and safe it locally afterwards
+    if os.path.exists(cache_path):
+        df = pd.read_csv(cache_path)
+    else:
+        # Download dataset
+        dataset = fetch_ucirepo(id=350)
+        X = dataset.data.features
+        y = dataset.data.targets
+        # Combine features + target
+        df = pd.concat([X, y], axis=1)
+        os.makedirs("data", exist_ok=True)
+        df.to_csv(cache_path, index=False)
 
     #Rename Columns
     df = df.rename(columns=COL_NAMES)

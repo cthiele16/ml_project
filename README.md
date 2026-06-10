@@ -24,10 +24,10 @@ For classification:
 1. download dataset in terminal: 
 `pip install ucimlrepo`
 `python -m pip install matplotlib`
-2. Run each phase seperately
+2. Run the phases (always from the directory `ml_project/`)
 `python main.py phasename`
-choose between phasenames: "eda", "preprocessing", "unsupervised", "baseline", "logistic_regression", "svm", "phase4", "modelcomparison"
+choose between phasenames: "eda", "preprocessing", "unsupervised", "baseline", "logistic_regression", "svm", "random_forest", "modelcomparison"
 You can either:
-* run all of the phases seperately (1. eda, 2. preprocess, 3. unsupervised, 4. baseline, 5. logistic_regression, 6. svm, 7. phase4) 
+* run all of the phases seperately (1. eda, 2. preprocess, 3. unsupervised, 4. baseline, 5. logistic_regression, 6. svm, 7. random_forest) 
 OR 
-* you run one time modelcomparison which does everything together, analysis, preprocessing, fits all the models and gives out the results, compares the models and gives the best model for our dataset.
+* you run one time modelcomparison which compares the model results (in the .json files) or, if the model resluts are not calculated yet, fits all the models and gives out the results, compares the models and gives the best model for our dataset depending on the classification metrics Accuracy, F1-score, ROC-AUC and AUPR.

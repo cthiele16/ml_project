@@ -10,6 +10,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, classification_report, f1_score, precision_score, recall_score, roc_auc_score
 from preprocessing import RANDOM_STATE, run as run_preprocessing
+from utils import save_results
 import optuna.visualization as vis
 import time
 
@@ -90,10 +91,16 @@ def adaboost_objective(trial, X_train_large, y_train_large):
 
 def run():
     X_train, y_train, X_val, X_test, y_val, y_test, _ = run_preprocessing()
-    num_trials = 50 #can set up to 100
+    num_trials = 30 #can set up to 100, needed to decrease it to run it (before it was 50)
 
     results = []
     feature_importances = {}
+
+    # Store per-model test predictions, scores and best params so the winning
+    # model can be saved with save_results (like in svm.py)
+    model_preds = {}
+    model_probs = {}
+    model_params = {}
 
     # ------------------------------------------
     # MODEL 1: Random Forest (CV Tuning)
@@ -107,9 +114,9 @@ def run():
     print(f"Best Params: {rf_study.best_params}")
 
     #Visualize tradeoffs in validation
-    vis.plot_parallel_coordinate(rf_study).show()
-    vis.plot_optimization_history(rf_study).show()
-    vis.plot_contour(rf_study, params=["max_depth", "n_estimators"]).show()
+    vis.plot_parallel_coordinate(rf_study).write_image("phases/results/RF/rf_cv_parallel.png")
+    vis.plot_optimization_history(rf_study).write_image("phases/results/RF/rf_cv_optimization_history.png")
+    vis.plot_contour(rf_study, params=["max_depth", "n_estimators"]).write_image("phases/results/RF/rf_cv_contour.png")
     
     # Final model assessment
     best_rand_model = RandomForestClassifier(**rf_study.best_params, random_state=RANDOM_STATE, n_jobs=-1)
@@ -146,6 +153,10 @@ def run():
         "Importance": best_rand_model.feature_importances_
     }).sort_values("Importance", ascending=False)
 
+    model_preds["RF Validation"] = test_preds
+    model_probs["RF Validation"] = test_probs
+    model_params["RF Validation"] = rf_study.best_params
+
     # ------------------------------------------
     # MODEL 2: Random Forest (OOB Tuning)
     # ------------------------------------------
@@ -164,8 +175,8 @@ def run():
     print(f"Best Params: {rf_oob_study.best_params}")
 
     # Visualize tradeoffs
-    vis.plot_parallel_coordinate(rf_oob_study).show()
-    vis.plot_optimization_history(rf_oob_study).show()
+    vis.plot_parallel_coordinate(rf_oob_study).write_image("phases/results/RF/rf_oob_parallel.png")
+    vis.plot_optimization_history(rf_oob_study).write_image("phases/results/RF/rf_oob_optimization_history.png")
     
     # Final model assessment on test set
     best_oob_model = RandomForestClassifier(
@@ -209,6 +220,10 @@ def run():
         "Importance": best_oob_model.feature_importances_
     }).sort_values("Importance", ascending=False)
 
+    model_preds["RF OOB"] = test_preds
+    model_probs["RF OOB"] = test_probs
+    model_params["RF OOB"] = rf_oob_study.best_params
+
     # ------------------------------------------
     # MODEL 3: Random Forest (Gradient Boosting)
     # ------------------------------------------
@@ -216,9 +231,9 @@ def run():
     gd_study.optimize(lambda trial: gbm_objective(trial, X_train_large, y_train_large), n_trials=num_trials)
 
     # Visualize tradeoffs in Gradient Boosting validation
-    vis.plot_parallel_coordinate(gd_study).show()
-    vis.plot_optimization_history(gd_study).show()
-    vis.plot_contour(gd_study, params=["max_depth", "n_estimators"]).show()
+    vis.plot_parallel_coordinate(gd_study).write_image("phases/results/RF/rf_gb_parallel.png")
+    vis.plot_optimization_history(gd_study).write_image("phases/results/RF/rf_gb_optimization_history.png")
+    vis.plot_contour(gd_study, params=["max_depth", "n_estimators"]).write_image("phases/results/RF/rf_gb_contour.png")
 
     print(f"Best Gradient Boosting CV ROC-AUC: {gd_study.best_value:.4f}")
     print(f"Best Params: {gd_study.best_params}")
@@ -257,6 +272,10 @@ def run():
         "Importance": best_grad_model.feature_importances_
     }).sort_values("Importance", ascending=False)
 
+    model_preds["Gradient Boosting"] = test_preds
+    model_probs["Gradient Boosting"] = test_probs
+    model_params["Gradient Boosting"] = gd_study.best_params
+
 
     # ------------------------------------------
     # MODEL 4: Random Forest (Adaboost)
@@ -266,9 +285,9 @@ def run():
     ada_study.optimize(lambda trial: adaboost_objective(trial, X_train_large, y_train_large), n_trials=num_trials)
 
     # Visualize tradeoffs in AdaBoost validation
-    vis.plot_parallel_coordinate(ada_study).show()
-    vis.plot_optimization_history(ada_study).show()
-    vis.plot_contour(ada_study, params=["max_depth", "n_estimators"]).show()
+    vis.plot_parallel_coordinate(ada_study).write_image("phases/results/RF/rf_ada_parallel.png")
+    vis.plot_optimization_history(ada_study).write_image("phases/results/RF/rf_ada_optimization_history.png")
+    vis.plot_contour(ada_study, params=["max_depth", "n_estimators"]).write_image("phases/results/RF/rf_ada_contour.png")
 
     print(f"Best AdaBoost CV ROC-AUC: {ada_study.best_value:.4f}")
     print(f"Best Params: {ada_study.best_params}")
@@ -319,6 +338,10 @@ def run():
         "Importance": best_ada_model.feature_importances_
     }).sort_values("Importance", ascending=False)
 
+    model_preds["AdaBoost"] = test_preds
+    model_probs["AdaBoost"] = test_probs
+    model_params["AdaBoost"] = ada_study.best_params
+
 
     # Show all results in dataframe
     comparison_df = pd.DataFrame(results)
@@ -332,6 +355,25 @@ def run():
     print("=" * 80)
 
     print(comparison_df.round(4).to_string(index=False))
+
+    # Save results of the winning model, with all variants (like in svm.py)
+    best_model_name = comparison_df.iloc[0]["Model"]
+
+    # One variant entry per model, each carrying its own best params
+    variants = []
+    for row in results:
+        variant = dict(row)
+        variant["best_params"] = model_params[row["Model"]]
+        variants.append(variant)
+
+    save_results(
+        "random_forest",
+        y_test,
+        model_preds[best_model_name],
+        model_probs[best_model_name],
+        best_params=model_params[best_model_name],
+        variants=variants,
+    )
 
     #Feature importance results
     print("\n" + "=" * 80)

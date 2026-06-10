@@ -1,12 +1,12 @@
 import argparse
 import eda
-from phases import logistic_regression_model, baseline_model, phase4, svm, modelcomparison
+from phases import logistic_regression_model, baseline_model, random_forest_experiments, svm, modelcomparison
 import preprocessing
 import unsupervised_structural_analysis
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("phase", choices=["eda", "preprocessing", "unsupervised", "baseline", "logistic_regression", "svm", "phase4", "modelcomparison"])
+    parser.add_argument("phase", choices=["eda", "preprocessing", "unsupervised", "baseline", "logistic_regression", "svm", "random_forest", "modelcomparison"])
     args = parser.parse_args()
 
     if args.phase == "eda":
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         logistic_regression_model.run()
     elif args.phase == "svm":
         svm.run()
-    elif args.phase == "phase4":
-        phase4.run()
+    elif args.phase == "random_forest":
+        random_forest_experiments.run()
     elif args.phase == "modelcomparison":
         modelcomparison.run()
