@@ -5,3 +5,6 @@ __pycache__/
 phases/__pycache__/
 .vscode/
 data/
+phases/.DS_Store
+phases/results/.DS_Store
+.DS_Store

@@ -16,12 +16,7 @@ from utils import save_results
 
 
 def train_model(X_train, y_train, preprocessor):
-    """
-    Train SVM models with different kernels using:
-    - preprocessing pipeline
-    - subsampled grid search (5000 points)
-    - refit best model on full training set
-    """
+    # Train SVM models with different kernels using: preprocessing pipeline, subsampled grid search (5000 points), refit best model on full training set
 
     # Subsample for grid search: full samples + multiple kernels + CV folds is too slow
     rng = np.random.default_rng(RANDOM_STATE)

@@ -5,18 +5,27 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.mixture import GaussianMixture
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, adjusted_rand_score
 
 from preprocessing import RANDOM_STATE, run as run_preprocessing
 
 def preprocess_special():
     # Import preprocessed data from the shared preprocessing pipeline.
     X_train, y_train, X_val, X_test, y_val, y_test, preprocessor = run_preprocessing()
+
+    # Fit the scaler/encoder on train only, then apply to all splits (no leakage).
+    X_train = preprocessor.fit_transform(X_train)
+    X_test = preprocessor.transform(X_test)
+
     return X_train, X_test, y_train, y_test
 
 def run():
 
     X_train, X_test, y_train, y_test = preprocess_special()
+
+    if hasattr(X_train, "toarray"):
+        X_train = X_train.toarray()
+        X_test = X_test.toarray()
 
     # Apply PCA and analyze explained variance:
 
@@ -37,7 +46,6 @@ def run():
     plt.title('PCA - Explained Variance')
     plt.legend()
     plt.savefig('phases/results/USA/pca_explained_variance.png')
-    plt.show()
 
     # refit with the chosen number of components(lab11)
     pca = PCA(n_components=n_components, random_state=RANDOM_STATE).fit(X_train)
@@ -56,7 +64,6 @@ def run():
     plt.title('PCA - First 2 components (train set)')
     plt.legend(title='Class')
     plt.savefig('phases/results/USA/pca_scatter.png')
-    plt.show()
 
     # K-Means: Elbow + Silhouette 
     # Inertia = how tightly are the points in each cluster packed together (sum of squared distances from each point to its cluster center)
@@ -79,7 +86,6 @@ def run():
     plt.ylabel('Inertia')
     plt.title('K-Means - Elbow Method')
     plt.savefig('phases/results/USA/kmeans_elbow.png')
-    plt.show()
 
     # Silhouette plot
     # how well each point fits in its assigned cluster compared to the nearest neighboring cluster
@@ -95,7 +101,6 @@ def run():
     plt.ylabel('Silhouette Score')
     plt.title('K-Means - Silhouette Score')
     plt.savefig('phases/results/USA/kmeans_silhouette.png')
-    plt.show()
 
     best_k_km = list(k_range)[silhouettes_km.index(max(silhouettes_km))]
     print(f"Best k for K-Means (silhouette): {best_k_km}")
@@ -117,8 +122,7 @@ def run():
     plt.xlabel('k')
     plt.ylabel('Negative Log-Likelihood')
     plt.title('GMM - Elbow Method')
-    plt.savefig('gmm_elbow.png')
-    plt.show()
+    plt.savefig('phases/results/USA/gmm_elbow.png')
 
     # Silhouette plot
     plt.figure()
@@ -127,7 +131,6 @@ def run():
     plt.ylabel('Silhouette Score')
     plt.title('GMM - Silhouette Score')
     plt.savefig('phases/results/USA/gmm_silhouette.png')
-    plt.show()
 
     best_k_gmm = list(k_range)[silhouettes_gmm.index(max(silhouettes_gmm))]
     print(f"Best k for GMM (silhouette): {best_k_gmm}")
@@ -177,7 +180,6 @@ def run():
     plt.suptitle('Cluster Assignments vs True Labels')
     plt.tight_layout()
     plt.savefig('phases/results/USA/cluster_vs_target.png')
-    plt.show()
 
     # Summary table
     results = pd.DataFrame({
@@ -186,7 +188,17 @@ def run():
         'Silhouette': [round(max(silhouettes_km), 4), round(max(silhouettes_gmm), 4)],
     })
     print(results)
+    
+    # The Adjusted Rand Index (ARI) measures how well the unsupervised clusters
+    # match the true default labels: 1.0 means a perfect match, 0.0 means the
+    # overlap is no better than random guessing.
+    print("ARI: 1.0=perfect match, 0.0=overlap like random guessing")
+    print("Cluster-vs-default agreement (ARI), K-Means:", adjusted_rand_score(y_train, km_labels))
+    print("Cluster-vs-default agreement (ARI), GMM:", adjusted_rand_score(y_train, gmm_labels))
+
     return results
+
+
 
 
 if __name__ == "__main__":

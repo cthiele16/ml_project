@@ -1,13 +1,13 @@
 import json
 import os
 
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, average_precision_score
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, average_precision_score, precision_score, recall_score
+
 
 def save_results(model_name, y_test, y_test_pred, y_test_score,
                  best_params=None, variants=None):
-    
     """
-    Save classification metrics to results/<model_name>.json
+    Save classification metrics to results/model_name.json
 
     Parameters
     model_name : Used as filename
@@ -27,6 +27,8 @@ def save_results(model_name, y_test, y_test_pred, y_test_score,
         "f1": f1_score(y_test, y_test_pred),
         "roc_auc": roc_auc_score(y_test, y_test_score),
         "aupr": average_precision_score(y_test, y_test_score),
+        "precision": precision_score(y_test, y_test_pred),
+        "recall": recall_score(y_test, y_test_pred),
     }
 
     # Save best hyperparameters if given
