@@ -182,7 +182,6 @@ def test_train_split(X,y):
 
     return X_train, y_train, X_val, X_test, y_val, y_test
 
-
 def cap_outliers(X_train, X_val, X_test, cols):
     """
     IQR-based capping fitted on train, applied to all splits.
@@ -209,45 +208,6 @@ def cap_outliers(X_train, X_val, X_test, cols):
 
     return X_train, X_val, X_test, bounds
 
-
-
-def test_train_split(X,y):
-    """
-    Split data into:
-    - train
-    - validation
-    - test
-    """
-    # First split:
-    # 60% train
-    # 40% temporary
-    X_train, X1_test, y_train, y1_test = train_test_split(
-        X,
-        y,
-        test_size=0.4,
-        stratify=y,
-        random_state=RANDOM_STATE
-    )
-
-    # Second split:
-    # 20% validation
-    # 20% test
-    X_val, X_test, y_val, y_test = train_test_split(
-        X1_test,
-        y1_test,
-        test_size=0.5,
-        stratify=y1_test,
-        random_state=RANDOM_STATE
-    )
-
-    # Print dataset sizes
-    print("\nDataset Sizes")
-    print("Train:", X_train.shape)
-    print("Validation:", X_val.shape)
-    print("Test:", X_test.shape)
-
-    return X_train, y_train, X_val, X_test, y_val, y_test
-
 def run():
     """
     Complete preprocessing pipeline.
@@ -256,15 +216,13 @@ def run():
     X, y, numeric_cols = load_prepare_data()
     
     # Split dataset
-    X_train, y_train,  X_val, X_test, y_val, y_test =test_train_split(X,y)
+    X_train, y_train,  X_val, X_test, y_val, y_test = test_train_split(X,y)
     X_train, X_val, X_test, _ = cap_outliers(X_train, X_val, X_test, numeric_cols)
-
 
     # Create preprocessor
     preprocessor = create_preprocessor(numeric_cols)
 
     return X_train, y_train, X_val, X_test, y_val, y_test, preprocessor
-
 
 if __name__ == "__main__":
     run()

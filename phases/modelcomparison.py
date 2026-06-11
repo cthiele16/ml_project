@@ -36,9 +36,11 @@ def run():
         rows.append({
             "model": name,
             "accuracy": data["accuracy"],
+            "precision": data["precision"],
+            "recall": data["recall"],
             "f1": data["f1"],
             "roc_auc": data["roc_auc"],
-            "aupr": data["aupr"],
+            "aupr": data["aupr"]
         })
 
     # put everything in a table and sort by roc_auc (best model on top)
